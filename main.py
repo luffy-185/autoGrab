@@ -1,7 +1,7 @@
 import os, json, re, asyncio, time
 from telethon import TelegramClient, events
 from telethon.tl.types import MessageMediaPhoto
-
+  
 # ===== CONFIG =====
 API_ID = int(os.environ.get("API_ID"))
 API_HASH = os.environ.get("API_HASH")
