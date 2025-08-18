@@ -116,7 +116,7 @@ async def random1_on(event):
     if random_tasks["1m"]:
         try: random_tasks["1m"].cancel()
         except: pass
-    random_tasks["1m"] = asyncio.create_task(random_loop(event.chat_id, 60, "1m"))
+    random_tasks["1m"] = asyncio.create_task(random_loop(event.chat_id, 66, "1m"))
     await event.reply("✅ Random1 ON (1m)")
 
 @client.on(events.NewMessage(pattern=r"^/random1 off$"))
@@ -139,7 +139,7 @@ async def random2_on(event):
     if random_tasks["10m"]:
         try: random_tasks["10m"].cancel()
         except: pass
-    random_tasks["10m"] = asyncio.create_task(random_loop(event.chat_id, 600, "10m"))
+    random_tasks["10m"] = asyncio.create_task(random_loop(event.chat_id, 620, "10m"))
     await event.reply("✅ Random2 ON (10m)")
 
 @client.on(events.NewMessage(pattern=r"^/random2 off$"))
