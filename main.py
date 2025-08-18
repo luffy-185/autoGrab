@@ -7,11 +7,11 @@ from telethon.tl.types import MessageMediaPhoto
 API_ID = int(os.getenv("API_ID"))
 API_HASH = os.getenv("API_HASH")
 SESSION = os.getenv("SESSION_STRING")
-OWNER_ID = int(os.getenv("OWNER"))  # Your Telegram ID
+OWNER_ID = (os.getenv("OWNER"))  # Your Telegram ID
 DB_FILE = "db.json"
 SPECIAL_CHAT = int(os.getenv("SPECIAL_CHAT", 0))  # chat for random msgs
-WAIFU_BOT_ID = int(os.getenv("BOT", 0))  # bot id for autograb
-GRAB_KEYWORD = "character appears"
+WAIFU_BOT_ID = (os.getenv("BOT", 0))  # bot id for autograb
+GRAB_KEYWORD = "ᴀ ɴᴇᴡ ᴄʜᴀʀᴀᴄᴛᴇʀ ʜᴀꜱ ᴀᴘᴘᴇᴀʀᴇᴅ!"
 
 # ==== LOAD DB ====
 if not os.path.exists(DB_FILE):
