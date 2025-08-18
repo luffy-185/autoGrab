@@ -1,7 +1,10 @@
 import os, json, asyncio
+from keep_alive import keep_alive
 from telethon import TelegramClient, events
 from telethon.sessions import StringSession
 from telethon.tl.types import MessageMediaPhoto
+
+keep_alive()
 
 # ==== CONFIG ====
 API_ID = int(os.getenv("API_ID"))
