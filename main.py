@@ -9,6 +9,7 @@ API_HASH = os.environ.get("API_HASH", "")
 SESSION = os.environ.get("SESSION", "")
 OWNER = os.environ.get("OWNER", "your_username")  # who can control bot
 SPECIAL_CHAT = int(os.environ.get("SPECIAL_CHAT", "0"))  # chat for random msgs
+WAIFU_BOT = os.environ.get("WAIFU_BOT", "waifubot_username")  # bot to grab from
 
 # ===== STATE =====
 with open("db.json", "r") as f:
@@ -18,6 +19,10 @@ grabbing_on = False
 randommsg1_on = False
 randommsg2_on = False
 spam_settings = {}  # chat_id -> { "delay": int, "message": str, "on": bool }
+
+# random messages (EDIT HERE for custom text)
+RANDOM_MSG1_TEXT = "/explore"
+RANDOM_MSG2_TEXT = "marry"
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
@@ -32,27 +37,30 @@ async def autograb(event):
     global grabbing_on
     if not grabbing_on: return
     if not event.is_group: return
-    if event.sender.bot:  # only from bots
-        if event.photo:
-            file_id = str(event.photo.id)
-            if file_id in WAIFU_DB:
-                name = WAIFU_DB[file_id]
-                await event.reply(f"/grab {name}")
+    if not event.sender.bot: return  # must be from a bot
+    if (event.sender.username or "").lower() != WAIFU_BOT.lower():
+        return  # only from waifu bot
+    
+    if event.photo:
+        file_id = str(event.photo.id)
+        if file_id in WAIFU_DB:
+            name = WAIFU_DB[file_id]
+            await event.reply(f"/grab {name}")
 
 # ===== RANDOM MESSAGES =====
 async def random_msg_loop1():
     global randommsg1_on
     while True:
         if randommsg1_on:
-            await client.send_message(SPECIAL_CHAT, "🔥 Random Message 1")
-        await asyncio.sleep(60)  # 1 min
+            await client.send_message(SPECIAL_CHAT, RANDOM_MSG1_TEXT)
+        await asyncio.sleep(65)  # 1 min
 
 async def random_msg_loop2():
     global randommsg2_on
     while True:
         if randommsg2_on:
-            await client.send_message(SPECIAL_CHAT, "💎 Random Message 2")
-        await asyncio.sleep(600)  # 10 min
+            await client.send_message(SPECIAL_CHAT, RANDOM_MSG2_TEXT)
+        await asyncio.sleep(605)  # 10 min
 
 # ===== SPAM SYSTEM =====
 async def spam_loop(chat_id):
