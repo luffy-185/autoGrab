@@ -1,169 +1,193 @@
-import os
-import json
-import asyncio
+import asyncio, json, os, re
 from telethon import TelegramClient, events
-from telethon.sessions import StringSession
+from telethon.tl.types import MessageMediaPhoto, MessageMediaDocument
+from keep_alive import keep_alive
 
-# 🔹 Import keep_alive (Flask ping server)
-try:
-    from keep_alive import keep_alive
-    KEEP_ALIVE_AVAILABLE = True
-except ImportError:
-    KEEP_ALIVE_AVAILABLE = False
+# ---------------- Config from Render ----------------
+API_ID = int(os.getenv("API_ID", "0"))
+API_HASH = os.getenv("API_HASH", "")
+SESSION = os.getenv("SESSION", "session")
+OWNER = os.getenv("OWNER_ID", "").lower()
+DEFAULT_GROUP = os.getenv("DEFAULT_GROUP", "@noob_grabber")
+CURRENT_SENDER = os.getenv("CURRENT_SENDER", "slave_waifu_bot")
 
-# ================= CONFIG =================
-API_ID = int(os.environ.get("API_ID", "0"))
-API_HASH = os.environ.get("API_HASH", "")
-SESSION_STRING = os.environ.get("SESSION_STRING", "")
+DB1_PATH = "db1.json"
+DB2_PATH = "db2.json"
 
-BOT_USERNAME = "Slave_waifu_bot"   # waifu bot username
-OWNER_ID = int(os.environ.get("OWNER_ID", "0"))
-
-MODE_DELAYS = {"bot": 2, "normal": 4, "human": 7}
+CURRENT_DB = 1
 CURRENT_MODE = "normal"
+MODE_DELAYS = {"bot": 1, "normal": 2, "human": 3}
 
-# DB FILES
-DB1_FILE = "db1.json"  # main DB
-DB2_FILE = "db2.json"  # new entries
+# ---------------- Logger ----------------
+def log(msg):
+    print(msg, flush=True)
 
-# ================= GLOBAL STATE =================
-client = TelegramClient(StringSession(SESSION_STRING), API_ID, API_HASH)
+# ---------------- Database ----------------
+def load_db(path):
+    if os.path.exists(path):
+        try:
+            with open(path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            pass
+    return {}
 
-grab_enabled_chats = {}   # chat_id → bool
-grab_all_enabled = False  # global toggle
+db1 = load_db(DB1_PATH)
+db2 = load_db(DB2_PATH)
+current_db = db1 if CURRENT_DB == 1 else db2
 
-# Load DBs
-def load_db(filename):
-    if not os.path.exists(filename):
-        with open(filename, "w") as f:
-            json.dump({}, f)
-    with open(filename, "r") as f:
-        return json.load(f)
-
-def save_db(filename, db):
-    with open(filename, "w") as f:
-        json.dump(db, f, indent=2)
-
-db1 = load_db(DB1_FILE)
-db2 = load_db(DB2_FILE)
-
-# ================= HELPERS =================
-def extract_file_key(msg):
-    if not msg.photo:
-        return None
-    return f"{msg.photo.id}_{msg.photo.access_hash}"
+# ---------------- Helpers ----------------
+OWNER_ID = None
 
 async def is_owner(event):
-    return event.sender_id == OWNER_ID
+    global OWNER_ID
+    sender = await event.get_sender()
+    if not sender:
+        return False
+    if sender.username and sender.username.lower() == OWNER:
+        OWNER_ID = sender.id
+        return True
+    if OWNER_ID and sender.id == OWNER_ID:
+        return True
+    return False
 
-# ================= GRABBING =================
-@client.on(events.NewMessage(from_users=BOT_USERNAME))
-async def handler(event):
-    global db1, db2
+def extract_file_key(msg):
+    if msg.media:
+        if isinstance(msg.media, MessageMediaPhoto):
+            return f"{msg.media.photo.id}_{msg.media.photo.access_hash}"
+        if isinstance(msg.media, MessageMediaDocument):
+            return f"{msg.media.document.id}_{msg.media.document.access_hash}"
+    return None
 
-    chat_id = event.chat_id
-    if not grab_all_enabled and not grab_enabled_chats.get(chat_id, False):
-        return  # grabbing off for this chat
+def shortest_word(name):
+    words = re.split(r"\s+", name.lower())
+    words = [w for w in words if len(w) > 2]
+    return min(words, key=len) if words else None
 
-    if not event.photo:
-        return  # must contain image
+# ---------------- Client ----------------
+client = TelegramClient(SESSION, API_ID, API_HASH)
 
-    key = extract_file_key(event)
-    if not key:
+@client.on(events.NewMessage)
+async def auto_grabber(event):
+    global current_db, CURRENT_SENDER
+    chat = await event.get_chat()
+    uname = getattr(chat, "username", None)
+    if not uname or f"@{uname.lower()}" != DEFAULT_GROUP.lower():
         return
 
-    delay = MODE_DELAYS.get(CURRENT_MODE, 3)
-    await asyncio.sleep(delay)
+    # check sender
+    sender = await event.get_sender()
+    if not sender or not sender.username or sender.username.lower() != CURRENT_SENDER.lower():
+        return
 
-    if key in db1:
-        char_name = db1[key]
-        await client.send_message(chat_id, f"/grab@{BOT_USERNAME} {char_name}")
+    text = event.raw_text or ""
+    if "✨ ᴇɴɢᴀɢᴇ ᴄʜᴀʀᴀᴄᴛᴇʀ ʟᴜᴄᴋ ᴇᴠᴇɴᴛ ᴀᴄᴛɪᴠᴀᴛᴇᴅ! ✨" in text:
+        key = extract_file_key(event.message)
+        if key and key in current_db:
+            char_name = current_db[key]
+            grab_word = shortest_word(char_name)
+            if grab_word:
+                delay = MODE_DELAYS.get(CURRENT_MODE, 2)
+                await asyncio.sleep(delay)
+                await client.send_message(event.chat_id, f"/grab@Slave_waifu_bot {grab_word}")
+                log(f"Grabbed {char_name} -> {grab_word}")
+        else:
+            log("Character not in DB, skipping")
+
+# ---------------- Commands ----------------
+@client.on(events.NewMessage(pattern=r"^/monitor"))
+async def monitor_cmd(event):
+    if not await is_owner(event): return
+    global DEFAULT_GROUP
+    parts = event.raw_text.split()
+    if len(parts) > 1:
+        DEFAULT_GROUP = parts[1]
+        await event.reply(f"✅ Now monitoring {DEFAULT_GROUP}")
     else:
-        # store as unknown until user adds manually
-        if key not in db2:
-            db2[key] = "Unknown"
-            save_db(DB2_FILE, db2)
+        await event.reply(f"📊 Monitoring {DEFAULT_GROUP}")
 
-# ================= COMMANDS =================
-@client.on(events.NewMessage(pattern=r"^/grab (on|off)$"))
-async def grab_toggle(event):
+@client.on(events.NewMessage(pattern=r"^/sender"))
+async def sender_cmd(event):
     if not await is_owner(event): return
-    chat_id = event.chat_id
-    state = event.pattern_match.group(1)
-    grab_enabled_chats[chat_id] = (state == "on")
-    await event.reply(f"✅ Auto-grab {'enabled' if state == 'on' else 'disabled'} for this chat")
+    global CURRENT_SENDER
+    parts = event.raw_text.split()
+    if len(parts) > 1:
+        CURRENT_SENDER = parts[1].lstrip("@")
+        await event.reply(f"✅ Now only reacting to messages from @{CURRENT_SENDER}")
+    else:
+        await event.reply(f"📊 Current sender: @{CURRENT_SENDER}")
 
-@client.on(events.NewMessage(pattern=r"^/grab (onall|offall)$"))
-async def grab_all_toggle(event):
+@client.on(events.NewMessage(pattern=r"^/usedb"))
+async def usedb_cmd(event):
     if not await is_owner(event): return
-    global grab_all_enabled
-    cmd = event.pattern_match.group(1)
-    grab_all_enabled = (cmd == "onall")
-    await event.reply(f"🌍 Auto-grab {'enabled' if grab_all_enabled else 'disabled'} globally")
+    global CURRENT_DB, current_db
+    parts = event.raw_text.split()
+    if len(parts) > 1 and parts[1] in ["1","2"]:
+        CURRENT_DB = int(parts[1])
+        current_db = db1 if CURRENT_DB == 1 else db2
+        await event.reply(f"✅ Using DB{CURRENT_DB}")
+    else:
+        await event.reply(f"📊 Current DB: {CURRENT_DB}")
 
-@client.on(events.NewMessage(pattern=r"^/grab on (-?\d+)$"))
-async def grab_specific(event):
+@client.on(events.NewMessage(pattern=r"^/mode"))
+async def mode_cmd(event):
     if not await is_owner(event): return
-    chat_id = int(event.pattern_match.group(1))
-    grab_enabled_chats[chat_id] = True
-    await event.reply(f"✅ Auto-grab enabled for chat {chat_id}")
+    global CURRENT_MODE
+    parts = event.raw_text.split()
+    if len(parts) > 1 and parts[1].lower() in MODE_DELAYS:
+        CURRENT_MODE = parts[1].lower()
+        await event.reply(f"✅ Mode set to {CURRENT_MODE} ({MODE_DELAYS[CURRENT_MODE]}s)")
+    else:
+        await event.reply(f"📊 Current mode: {CURRENT_MODE} ({MODE_DELAYS[CURRENT_MODE]}s)")
 
-@client.on(events.NewMessage(pattern=r"^/addchar (.+)$"))
-async def addchar(event):
+@client.on(events.NewMessage(pattern=r"^/name$"))
+async def name_cmd(event):
     if not await is_owner(event): return
     if not event.is_reply:
-        await event.reply("❌ Reply to the unknown character image to add.")
+        await event.reply("Reply to a message with /name")
         return
-
     reply = await event.get_reply_message()
     key = extract_file_key(reply)
-    if not key:
-        await event.reply("❌ No image found.")
-        return
-
-    char_name = event.pattern_match.group(1).strip()
-    db1[key] = char_name
-    save_db(DB1_FILE, db1)
-
-    if key in db2:
-        del db2[key]
-        save_db(DB2_FILE, db2)
-
-    await event.reply(f"✅ Added `{char_name}` to DB1")
+    if key and key in current_db:
+        await event.reply(f"Character: {current_db[key]}")
+    else:
+        await event.reply("❌ Not found in DB")
 
 @client.on(events.NewMessage(pattern=r"^/status$"))
-async def status(event):
+async def status_cmd(event):
     if not await is_owner(event): return
     msg = (
-        "📊 Status:\n"
-        f"- Global Grab: {grab_all_enabled}\n"
-        f"- Chats Enabled: {len([c for c,v in grab_enabled_chats.items() if v])}\n"
+        f"📊 Status\n"
+        f"- Monitoring: {DEFAULT_GROUP}\n"
+        f"- Sender: @{CURRENT_SENDER}\n"
+        f"- DB: {CURRENT_DB} (entries: {len(current_db)})\n"
         f"- Mode: {CURRENT_MODE} ({MODE_DELAYS[CURRENT_MODE]}s)\n"
-        f"- DB1 Entries: {len(db1)}\n"
-        f"- DB2 Entries: {len(db2)}\n"
     )
     await event.reply(msg)
 
-@client.on(events.NewMessage(pattern=r"^/mode (.+)$"))
-async def set_mode(event):
+@client.on(events.NewMessage(pattern=r"^/help$"))
+async def help_cmd(event):
     if not await is_owner(event): return
-    global CURRENT_MODE
-    mode = event.pattern_match.group(1).lower()
-    if mode in MODE_DELAYS:
-        CURRENT_MODE = mode
-        await event.reply(f"✅ Mode set to {CURRENT_MODE} ({MODE_DELAYS[CURRENT_MODE]}s)")
-    else:
-        await event.reply("❌ Invalid mode. Use: bot, normal, human")
+    msg = (
+        "🤖 Commands:\n"
+        "/monitor <group>\n"
+        "/sender <username>\n"
+        "/usedb <1|2>\n"
+        "/mode <bot|normal|human>\n"
+        "/name (reply)\n"
+        "/status\n"
+        "/help\n"
+    )
+    await event.reply(msg)
 
-# ================= MAIN =================
+# ---------------- Main ----------------
 async def main():
-    if KEEP_ALIVE_AVAILABLE:
-        keep_alive()
     await client.start()
-    print("✅ Bot started")
+    log("Bot started ✅")
     await client.run_until_disconnected()
 
 if __name__ == "__main__":
+    keep_alive()
     client.loop.run_until_complete(main())
 
 
