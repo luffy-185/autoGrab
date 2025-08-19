@@ -11,6 +11,12 @@ OWNER = os.getenv("OWNER_ID", "").lower()
 DEFAULT_GROUP = os.getenv("DEFAULT_GROUP", "@noob_grabber")
 CURRENT_SENDER = os.getenv("CURRENT_SENDER", "slave_waifu_bot")
 
+from telethon.sessions import StringSession
+
+if not SESSION_STRING:
+    raise ValueError("⚠️ SESSION_STRING not set in environment variables!")
+
+client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 
 CURRENT_DB = 1
 CURRENT_MODE = "normal"
@@ -66,8 +72,6 @@ def shortest_word(name):
     words = [w for w in words if len(w) > 2]
     return min(words, key=len) if words else None
 
-# ---------------- Client ----------------
-client = TelegramClient(SESSION, API_ID, API_HASH)
 
 @client.on(events.NewMessage)
 async def auto_grabber(event):
