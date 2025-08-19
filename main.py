@@ -13,7 +13,7 @@ CURRENT_SENDER = os.getenv("CURRENT_SENDER", "slave_waifu_bot")
 
 from telethon.sessions import StringSession
 
-if not SESSION_STRING:
+if not SESSION:
     raise ValueError("⚠️ SESSION_STRING not set in environment variables!")
 
 client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
