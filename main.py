@@ -32,8 +32,8 @@ def load_db(path):
             pass
     return {}
 
-db1 = load_db(DB1_PATH)
-db2 = load_db(DB2_PATH)
+db1 = db1.json
+db2 = db2.json
 current_db = db1 if CURRENT_DB == 1 else db2
 
 # ---------------- Helpers ----------------
