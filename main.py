@@ -143,7 +143,7 @@ async def status(event):
 
 # ==== HELP ====
 @client.on(events.NewMessage(pattern=r"^/help$"))
-@owner_only
+# @owner_only
 async def help_command(event):
     help_text = """🤖 Bot Commands:
 
