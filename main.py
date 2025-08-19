@@ -6,7 +6,7 @@ from keep_alive import keep_alive
 # ---------------- Config from Render ----------------
 API_ID = int(os.getenv("API_ID", "0"))
 API_HASH = os.getenv("API_HASH", "")
-SESSION = os.getenv("SESSION", "session")
+SESSION = os.getenv("SESSION_STRING", "session")
 OWNER = os.getenv("OWNER_ID", "").lower()
 DEFAULT_GROUP = os.getenv("DEFAULT_GROUP", "@noob_grabber")
 CURRENT_SENDER = os.getenv("CURRENT_SENDER", "slave_waifu_bot")
