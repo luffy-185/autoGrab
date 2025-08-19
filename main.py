@@ -57,7 +57,6 @@ client = TelegramClient(StringSession(SESSION), API_ID, API_HASH)
 def owner_only(func):
     async def wrapper(event):
         if event.sender_id != OWNER_ID:
-            await event.reply("❌ You are not authorized to use this command.")
             return
         await func(event)
     return wrapper
@@ -143,7 +142,7 @@ async def status(event):
 
 # ==== HELP ====
 @client.on(events.NewMessage(pattern=r"^/help$"))
-# @owner_only
+@owner_only
 async def help_command(event):
     help_text = """🤖 Bot Commands:
 
