@@ -11,8 +11,6 @@ OWNER = os.getenv("OWNER_ID", "").lower()
 DEFAULT_GROUP = os.getenv("DEFAULT_GROUP", "@noob_grabber")
 CURRENT_SENDER = os.getenv("CURRENT_SENDER", "slave_waifu_bot")
 
-DB1_PATH = "db1.json"
-DB2_PATH = "db2.json"
 
 CURRENT_DB = 1
 CURRENT_MODE = "normal"
@@ -23,17 +21,21 @@ def log(msg):
     print(msg, flush=True)
 
 # ---------------- Database ----------------
-def load_db(path):
-    if os.path.exists(path):
-        try:
-            with open(path, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except:
-            pass
-    return {}
+try:
+    with open("db1.json", "r", encoding="utf-8") as f:
+        db1 = json.load(f)
+except Exception as e:
+    print(f"⚠️ Error loading db1.json: {e}")
+    db1 = {}
 
-db1 = db1.json
-db2 = db2.json
+try:
+    with open("db2.json", "r", encoding="utf-8") as f:
+        db2 = json.load(f)
+except Exception as e:
+    print(f"⚠️ Error loading db2.json: {e}")
+    db2 = {}
+
+CURRENT_DB = 1
 current_db = db1 if CURRENT_DB == 1 else db2
 
 # ---------------- Helpers ----------------
